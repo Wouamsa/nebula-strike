@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>NEBULA STRIKE</title>
+<meta name="description" content="Nebula Strike – a free browser-based asteroid shooter game. Destroy asteroids, survive waves and beat the high score. No install required.">
+<meta name="keywords" content="asteroid game, nebula strike, space shooter, browser game, jeu asteroides, arcade">
+<meta property="og:title" content="Nebula Strike – Asteroid Shooter">
+<meta property="og:description" content="Free browser asteroid shooter. Destroy rocks, survive waves, beat the high score.">
+<meta property="og:type" content="website">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"VideoGame","name":"Nebula Strike","description":"A free browser-based asteroid shooter game. Destroy asteroids, survive waves and beat the high score.","genre":"Arcade","playMode":"SinglePlayer","inLanguage":["fr","en"],"gamePlatform":"Web Browser"}
+</script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap');
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  background:#020810;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  min-height:100vh;
+  font-family:'Orbitron',monospace;
+  overflow-y:auto;
+  color:#00f5ff;
+}
+
+#wrap {
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:0;
+}
+
+#hud {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:6px 16px;
+  background:rgba(0,20,40,0.9);
+  border:1px solid rgba(0,245,255,0.35);
+  border-bottom:none;
+  width:100%;
+}
+
+.hcol { display:flex; flex-direction:column; align-items:center; min-width:90px; }
+.hlabel { font-size:8px; letter-spacing:3px; color:rgba(0,245,255,0.45); font-family:'Share Tech Mono',monospace; }
+.hval { font-size:20px; font-weight:900; color:#00f5ff; text-shadow:0 0 10px #00f5ff; letter-spacing:2px; }
+
+#lives-box { display:flex; gap:6px; align-items:center; min-height:24px; }
+
+#canvas {
+  display:block;
+  border:1px solid rgba(0,245,255,0.4);
+  box-shadow:0 0 30px rgba(0,245,255,0.15);
+}
+
+#overlay {
+  position:absolute;
+  top:0; left:0; width:100%; height:100%;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  background:rgba(2,8,16,0.92);
+  z-index:10;
+  gap:16px;
+}
+#overlay.hidden { display:none; }
+
+.otitle {
+  font-size:clamp(26px,6vw,50px);
+  font-weight:900;
+  letter-spacing:6px;
+  color:#00f5ff;
+  text-shadow:0 0 16px #00f5ff, 0 0 40px #00f5ff55;
+  text-align:center;
+}
+.osub {
+  font-family:'Share Tech Mono',monospace;
+  font-size:clamp(10px,2vw,13px);
+  color:rgba(0,245,255,0.55);
+  letter-spacing:3px;
+  text-align:center;
+  line-height:1.9;
+}
+.oscorelab { font-size:11px; letter-spacing:4px; color:rgba(0,245,255,0.4); font-family:'Share Tech Mono',monospace; }
+.oscoreval { font-size:34px; font-weight:900; color:#ffee00; text-shadow:0 0 12px #ffee00; }
+
+.btn {
+  padding:13px 40px;
+  background:transparent;
+  border:2px solid #00f5ff;
+  color:#00f5ff;
+  font-family:'Orbitron',monospace;
+  font-size:13px;
+  font-weight:700;
+  letter-spacing:4px;
+  cursor:pointer;
+  text-transform:uppercase;
+  box-shadow:0 0 14px rgba(0,245,255,0.5);
+  transition:background 0.2s;
+}
+.btn:hover { background:rgba(0,245,255,0.12); }
+
+#wave-msg {
+  position:absolute;
+  top:50%; left:50%;
+  transform:translate(-50%,-50%);
+  font-size:26px; font-weight:900;
+  letter-spacing:5px;
+  color:#00ff88;
+  text-shadow:0 0 18px #00ff88;
+  pointer-events:none;
+  z-index:5;
+  opacity:0;
+  transition:opacity 0.3s;
+  white-space:nowrap;
+}
+#wave-msg.show { opacity:1; }
+
+#mctrl {
+  display:none;
+  width:100%;
+  padding:8px 12px;
+  justify-content:space-between;
+  align-items:center;
+  background:rgba(0,20,40,0.9);
+  border:1px solid rgba(0,245,255,0.3);
+  border-top:none;
+  gap:6px;
+}
+.mbtn {
+  width:54px; height:54px;
+  background:rgba(0,245,255,0.07);
+  border:1.5px solid rgba(0,245,255,0.4);
+  border-radius:8px;
+  color:#00f5ff;
+  font-size:18px;
+  cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  -webkit-tap-highlight-color:transparent;
+  user-select:none;
+}
+.mbtn:active,.mbtn.on { background:rgba(0,245,255,0.22); box-shadow:0 0 10px #00f5ff; }
+.mbtn.fire { border-color:rgba(255,0,170,0.6); color:#ff00aa; width:62px; height:62px; font-size:22px; }
+.mbtn.fire:active,.mbtn.fire.on { background:rgba(255,0,170,0.18); box-shadow:0 0 10px #ff00aa; }
+.mbtn.hyper { border-color:rgba(255,238,0,0.5); color:#ffee00; font-size:10px; font-weight:700; letter-spacing:0; font-family:'Orbitron',monospace; }
+.mbtn.hyper:active { background:rgba(255,238,0,0.12); }
+.mgrp { display:flex; gap:6px; }
+
+@media (pointer:coarse),(max-width:600px) { #mctrl { display:flex; } }
+
+/* ── HALL OF FAME (ticker) — voir #hof-ticker-wrap ── */
+
+/* ── PSEUDO MODAL ─────────────────────────────────── */
+#pseudo-modal {
+  position:fixed;
+  inset:0;
+  background:rgba(2,8,16,0.96);
+  z-index:100;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:18px;
+  backdrop-filter:blur(4px);
+}
+#pseudo-modal.hidden { display:none; }
+
+#pseudo-modal .pm-title {
+  font-size:clamp(18px,4vw,28px);
+  font-weight:900;
+  letter-spacing:5px;
+  color:#ffee00;
+  text-shadow:0 0 16px #ffee00, 0 0 40px #ffee0055;
+  text-align:center;
+}
+#pseudo-modal .pm-score {
+  font-size:clamp(28px,6vw,52px);
+  font-weight:900;
+  color:#00f5ff;
+  text-shadow:0 0 16px #00f5ff;
+  letter-spacing:4px;
+}
+#pseudo-modal .pm-sub {
+  font-family:'Share Tech Mono',monospace;
+  font-size:11px;
+  color:rgba(0,245,255,0.5);
+  letter-spacing:3px;
+  text-align:center;
+}
+#pseudo-input {
+  background:transparent;
+  border:none;
+  border-bottom:2px solid #00f5ff;
+  color:#00f5ff;
+  font-family:'Orbitron',monospace;
+  font-size:20px;
+  font-weight:700;
+  letter-spacing:4px;
+  text-align:center;
+  width:260px;
+  outline:none;
+  padding:8px 0;
+  text-transform:uppercase;
+  text-shadow:0 0 8px #00f5ff;
+  caret-color:#00f5ff;
+}
+#pseudo-input::placeholder { color:rgba(0,245,255,0.2); }
+#pseudo-input:focus { border-bottom-color:#ffee00; color:#ffee00; text-shadow:0 0 8px #ffee00; caret-color:#ffee00; }
+
+/* ── TICKER HALL OF FAME ──────────────────────────── */
+#hof-ticker-wrap {
+  width:100%;
+  max-width:800px;
+  overflow:hidden;
+  background:rgba(0,10,22,0.95);
+  border:1px solid rgba(0,245,255,0.2);
+  border-bottom:none;
+  height:22px;
+  display:flex;
+  align-items:center;
+  position:relative;
+}
+#hof-ticker-wrap::before {
+  content:'▶ TOP';
+  position:absolute;
+  left:0;
+  z-index:2;
+  background:rgba(0,245,255,0.12);
+  border-right:1px solid rgba(0,245,255,0.25);
+  color:#00f5ff;
+  font-size:8px;
+  font-weight:900;
+  letter-spacing:2px;
+  padding:0 8px;
+  height:100%;
+  display:flex;
+  align-items:center;
+  font-family:'Orbitron',monospace;
+  white-space:nowrap;
+}
+#hof-ticker {
+  display:flex;
+  gap:0;
+  padding-left:60px;
+  animation:ticker-scroll 28s linear infinite;
+  white-space:nowrap;
+  font-family:'Share Tech Mono',monospace;
+  font-size:10px;
+  letter-spacing:1px;
+  align-items:center;
+  height:100%;
+}
+#hof-ticker:hover { animation-play-state:paused; }
+@keyframes ticker-scroll {
+  0%   { transform:translateX(0); }
+  100% { transform:translateX(-50%); }
+}
+.ticker-item {
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:0 22px;
+  border-right:1px solid rgba(0,245,255,0.1);
+  height:100%;
+}
+.ticker-rank { color:rgba(0,245,255,0.35); font-size:9px; }
+.ticker-name { color:#e0f8ff; font-weight:700; letter-spacing:2px; }
+.ticker-score { color:#ffee00; font-weight:900; text-shadow:0 0 6px #ffee0066; }
+.ticker-wave  { color:rgba(0,255,136,0.6); font-size:9px; }
+</style>
+</head>
+<body>
+<!-- PSEUDO SAISIE MODAL -->
+<div id="pseudo-modal" class="hidden">
+  <div class="pm-title">✦ EXPLOIT DÉBLOQUÉ ✦</div>
+  <div class="pm-sub">SCORE SUPÉRIEUR À 5 000 PTS</div>
+  <div class="pm-score" id="pm-score-val">0</div>
+  <div class="pm-sub">ENTREZ VOTRE NOM DE PILOTE</div>
+  <input type="text" id="pseudo-input" maxlength="12" placeholder="CALL SIGN" autocomplete="off" spellcheck="false">
+  <div class="pm-sub" style="font-size:9px;opacity:0.4">12 caractères max — Entrée pour valider</div>
+  <button class="btn" id="pseudo-submit" onclick="submitPseudo()">&#10003; VALIDER</button>
+  <button class="btn" style="border-color:rgba(0,245,255,0.2);color:rgba(0,245,255,0.3);font-size:10px;padding:6px 20px;" onclick="skipPseudo()">Passer</button>
+</div>
+
+<div id="page-wrap">
+<div id="hof-ticker-wrap">
+  <div id="hof-ticker"><span class="ticker-item" style="color:rgba(0,245,255,0.25);letter-spacing:3px;font-size:9px">CHARGEMENT...</span></div>
+</div>
+<div id="wrap">
+  <div id="hud">
+    <div class="hcol"><div class="hlabel">Score</div><div class="hval" id="sc">0</div></div>
+    <div class="hcol"><div class="hlabel">Vies</div><div id="lives-box"></div></div>
+    <div class="hcol"><div class="hlabel">Vague</div><div class="hval" id="wv">1</div></div>
+    <div class="hcol"><div class="hlabel">Meilleur</div><div class="hval" id="hi">0</div></div>
+  </div>
+
+  <div style="position:relative">
+    <canvas id="canvas"></canvas>
+    <div id="wave-msg"></div>
+    <div id="overlay">
+      <div class="otitle">NEBULA STRIKE</div>
+      <div id="hof-best-score" class="osub" style="color:rgba(255,238,0,0.7);font-size:11px;text-shadow:0 0 8px #ffee00;min-height:16px"></div>
+      <div class="osub">
+        Grand astéroïde &nbsp;<span style="color:#ff9944">20 pts</span><br>
+        Astéroïde moyen &nbsp;<span style="color:#ff9944">50 pts</span><br>
+        Petit astéroïde &nbsp;&nbsp;<span style="color:#ff9944">100 pts</span><br>
+        Grande soucoupe &nbsp;<span style="color:#ff00aa">200 pts</span><br>
+        Petite soucoupe &nbsp;&nbsp;<span style="color:#ff00aa">1000 pts</span>
+      </div>
+      <button class="btn" onclick="startGame()">&#9654; DÉMARRER</button>
+      <div class="osub" style="font-size:9px;opacity:0.45;margin-top:4px">
+        &#8592; &#8594; Rotation &nbsp; &#8593; Propulsion &nbsp; ESPACE Tir &nbsp; H Hyperespace
+      </div>
+    </div>
+  </div>
+
+  <div id="mctrl">
+    <div class="mgrp">
+      <button class="mbtn" id="ml" ontouchstart="mp('l',1)" ontouchend="mp('l',0)">&#9665;</button>
+      <button class="mbtn" id="mr" ontouchstart="mp('r',1)" ontouchend="mp('r',0)">&#9655;</button>
+    </div>
+    <button class="mbtn fire" id="mf" ontouchstart="mp('f',1)" ontouchend="mp('f',0)">&#10022;</button>
+    <div class="mgrp">
+      <button class="mbtn hyper" id="mh" ontouchstart="doHyper()" ontouchend="">HYPER</button>
+      <button class="mbtn" id="mt" ontouchstart="mp('t',1)" ontouchend="mp('t',0)">&#9651;</button>
+    </div>
+  </div>
+</div><!-- /wrap -->
+
+</div><!-- /page-wrap -->
+
+<script>
+"use strict";
+
+// ── CANVAS ──────────────────────────────────────────────────────
+var CV = document.getElementById('canvas');
+var CX = CV.getContext('2d');
+
+function resize() {
+  var mw = Math.min(window.innerWidth - 24, 800);
+  var mh = window.innerHeight - 180;
+  var s  = Math.max(360, Math.min(mw, mh / 0.72, 700));
+  CV.width  = Math.floor(s);
+  CV.height = Math.floor(s * 0.72);
+}
+resize();
+window.addEventListener('resize', resize);
+
+function W() { return CV.width; }
+function H() { return CV.height; }
+
+// ── MATH ────────────────────────────────────────────────────────
+var TAU = Math.PI * 2;
+function rnd(a,b) { return Math.random()*(b-a)+a; }
+function wrap(v,m) { return ((v%m)+m)%m; }
+
+// ── AUDIO ───────────────────────────────────────────────────────
+var AC = null;
+function getAC() {
+  if (!AC) { try { AC = new (window.AudioContext||window.webkitAudioContext)(); } catch(e){} }
+  return AC;
+}
+function tone(freq,type,dur,vol) {
+  try {
+    var ac=getAC(); if(!ac) return;
+    var o=ac.createOscillator(), g=ac.createGain();
+    o.connect(g); g.connect(ac.destination);
+    o.type=type; o.frequency.value=freq;
+    g.gain.setValueAtTime(vol,ac.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001,ac.currentTime+dur);
+    o.start(); o.stop(ac.currentTime+dur);
+  } catch(e){}
+}
+function sShoot()  { tone(800,'sawtooth',0.07,0.15); }
+function sBigExp() { tone(80,'sawtooth',0.4,0.3); tone(55,'square',0.35,0.15); }
+function sMedExp() { tone(130,'sawtooth',0.22,0.2); }
+function sSmExp()  { tone(220,'square',0.14,0.18); }
+function sDie()    { var i; for(i=0;i<7;i++) (function(j){ setTimeout(function(){ tone(280-j*28,'sawtooth',0.14,0.2); },j*55); })(i); }
+function sHyper()  { var i; for(i=0;i<6;i++) (function(j){ setTimeout(function(){ tone(180+j*200,'sine',0.09,0.14); },j*50); })(i); }
+function sThrust() { tone(55+rnd(0,20),'sawtooth',0.04,0.04); }
+function sBeat(p)  { tone(p?110:80,'sine',0.06,0.18); }
+function sLife()   { tone(523,'sine',0.1,0.2); setTimeout(function(){ tone(784,'sine',0.14,0.25); },200); }
+
+// ── INPUT ───────────────────────────────────────────────────────
+var K = {};
+document.addEventListener('keydown', function(e) {
+  K[e.code] = true;
+  if (e.code==='Space') e.preventDefault();
+  if (e.code==='KeyH' && running) doHyper();
+});
+document.addEventListener('keyup', function(e) { K[e.code] = false; });
+
+function mp(k,v) {
+  K['m_'+k] = !!v;
+  var ids={l:'ml',r:'mr',f:'mf',t:'mt'};
+  var el=document.getElementById(ids[k]);
+  if(el) el.classList.toggle('on',!!v);
+}
+
+// ── STATE ───────────────────────────────────────────────────────
+var running=false, score=0, hi=0, lives=3, wave=1;
+var invTimer=0, respTimer=0, shootCD=0;
+var beatT=0, beatPhase=false, beatInterval=1.0;
+var saucerT=0, nextWaveT=0;
+
+// ── OBJECTS ─────────────────────────────────────────────────────
+var ship=null;
+var asteroids=[], bullets=[], saucers=[], sbullets=[], particles=[], trailPts=[];
+
+// ── SHIP ────────────────────────────────────────────────────────
+function mkShip() {
+  return { x:W()/2, y:H()/2, vx:0, vy:0, angle:-Math.PI/2, alive:true };
+}
+
+// ── ASTEROIDS ───────────────────────────────────────────────────
+var ASIZE={large:38,medium:22,small:11};
+var ASPD ={large:0.7,medium:1.2,small:2.0};
+
+function mkAstShape(r) {
+  var n=8+Math.floor(rnd(0,5)), pts=[], i;
+  for(i=0;i<n;i++) {
+    var a=(i/n)*TAU, d=r*rnd(0.72,1.0);
+    pts.push([Math.cos(a)*d, Math.sin(a)*d]);
+  }
+  return pts;
+}
+
+function mkAst(x,y,size) {
+  var spd=ASPD[size]*(1+wave*0.08), ang=rnd(0,TAU);
+  return {x:x,y:y,vx:Math.cos(ang)*spd,vy:Math.sin(ang)*spd,
+    rot:0,rotV:rnd(-0.03,0.03),size:size,r:ASIZE[size],shape:mkAstShape(ASIZE[size])};
+}
+
+function spawnWave() {
+  asteroids=[];
+  var n=Math.min(3+wave,10), i, x, y;
+  for(i=0;i<n;i++) {
+    do { x=rnd(0,W()); y=rnd(0,H()); }
+    while(Math.hypot(x-W()/2,y-H()/2)<110);
+    asteroids.push(mkAst(x,y,'large'));
+  }
+}
+
+// ── PARTICLES ───────────────────────────────────────────────────
+function explode(x,y,n,col,spd,life) {
+  var i;
+  for(i=0;i<n;i++) {
+    var a=rnd(0,TAU), s=rnd(0.4,spd);
+    particles.push({x:x,y:y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,
+      life:rnd(life*0.5,life),maxL:life,col:col,r:rnd(0.7,2.2)});
+  }
+}
+
+// ── SAUCERS ─────────────────────────────────────────────────────
+function mkSaucer() {
+  var big=wave<4||Math.random()<0.55, fromL=Math.random()<0.5;
+  return {x:fromL?-5:W()+5, y:rnd(H()*0.1,H()*0.9),
+    vx:(fromL?1:-1)*(big?1.2:2.0), vy:rnd(-0.5,0.5),
+    big:big, r:big?20:10, shootT:rnd(60,120)};
+}
+
+function saucerShoot(s) {
+  var ang = s.big ? rnd(0,TAU)
+    : (ship&&ship.alive ? Math.atan2(ship.y-s.y,ship.x-s.x)+rnd(-0.35,0.35) : rnd(0,TAU));
+  var spd=s.big?3.5:5.0;
+  sbullets.push({x:s.x,y:s.y,vx:Math.cos(ang)*spd,vy:Math.sin(ang)*spd,life:55});
+}
+
+// ── SCORE ───────────────────────────────────────────────────────
+var PTS={large:20,medium:50,small:100};
+
+function addScore(v) {
+  var prev=score; score+=v;
+  if(Math.floor(score/10000)>Math.floor(prev/10000)) { lives++; sLife(); updateHUD(); }
+  document.getElementById('sc').textContent=score;
+  if(score>hi) { hi=score; document.getElementById('hi').textContent=hi; }
+}
+
+function updateHUD() {
+  document.getElementById('wv').textContent=wave;
+  document.getElementById('sc').textContent=score;
+  document.getElementById('hi').textContent=hi;
+  var lb=document.getElementById('lives-box');
+  lb.innerHTML='';
+  var i;
+  for(i=0;i<lives;i++) {
+    var svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+    svg.setAttribute('width','16'); svg.setAttribute('height','16');
+    svg.setAttribute('viewBox','-10 -12 20 24');
+    svg.innerHTML='<polygon points="0,-11 8,9 -8,9" fill="none" stroke="#00f5ff" stroke-width="1.8" style="filter:drop-shadow(0 0 4px #00f5ff)"/>';
+    lb.appendChild(svg);
+  }
+}
+
+// ── HYPER ────────────────────────────────────────────────────────
+function doHyper() {
+  if(!ship||!ship.alive||!running) return;
+  sHyper();
+  explode(ship.x,ship.y,14,'#ffee00',3.5,28);
+  ship.x=rnd(50,W()-50); ship.y=rnd(50,H()-50);
+  ship.vx=0; ship.vy=0; invTimer=70;
+  if(Math.random()<0.15) killShip();
+}
+
+// ── KILL ─────────────────────────────────────────────────────────
+function killShip() {
+  if(!ship||!ship.alive) return;
+  sDie();
+  explode(ship.x,ship.y,28,'#00f5ff',4,80);
+  explode(ship.x,ship.y,14,'#ffffff',2,50);
+  ship.alive=false; trailPts=[];
+  lives--;
+  updateHUD();
+  if(lives<=0) { setTimeout(gameOver,1400); }
+  else { respTimer=180; }
+}
+
+// ── PSEUDO & HALL OF FAME ────────────────────────────────────────
+var pendingScore=0, pendingWave=0;
+
+function gameOver() {
+  running=false;
+  if(score>=5000) {
+    pendingScore=score; pendingWave=wave;
+    document.getElementById('pm-score-val').textContent=score;
+    document.getElementById('pseudo-modal').classList.remove('hidden');
+    setTimeout(function(){ document.getElementById('pseudo-input').focus(); },100);
+  } else {
+    showGameOver();
+  }
+}
+
+function submitPseudo() {
+  var pseudo=document.getElementById('pseudo-input').value.trim().toUpperCase();
+  if(pseudo.length===0) pseudo='ANONYME';
+  document.getElementById('pseudo-modal').classList.add('hidden');
+  saveScore(pendingScore,pendingWave,pseudo);
+  showGameOver();
+}
+
+function skipPseudo() {
+  document.getElementById('pseudo-modal').classList.add('hidden');
+  saveScore(pendingScore,pendingWave,'');
+  showGameOver();
+}
+
+document.getElementById('pseudo-input').addEventListener('keydown',function(e){ if(e.key==='Enter') submitPseudo(); });
+
+function showGameOver() {
+  var ov=document.getElementById('overlay');
+  ov.innerHTML='<div class="otitle">GAME OVER</div>'
+    +'<div class="oscorelab">SCORE FINAL</div>'
+    +'<div class="oscoreval">'+score+'</div>'
+    +(score>=hi&&score>0?'<div class="osub" style="color:#ffee00;text-shadow:0 0 10px #ffee00;font-size:13px">&#10022; NOUVEAU RECORD &#10022;</div>':'')
+    +'<div class="osub">Meilleur : '+hi+'</div>'
+    +'<button class="btn" onclick="startGame()">&#8634; REJOUER</button>';
+  ov.classList.remove('hidden');
+  loadHOF();
+}
+
+function saveScore(s,w,pseudo) {
+  if(s<=0) return;
+  // Sauvegarde locale uniquement (version standalone)
+  var scores = JSON.parse(localStorage.getItem('ns_hof')||'[]');
+  scores.push({score:s,wave:w,pseudo:pseudo||'ANONYME',played_at:new Date().toISOString()});
+  scores.sort(function(a,b){return b.score-a.score;});
+  localStorage.setItem('ns_hof', JSON.stringify(scores.slice(0,10)));
+}
+
+function loadHOF() {
+  var data = JSON.parse(localStorage.getItem('ns_hof')||'[]');
+      var best = document.getElementById('hof-best-score');
+      var ticker = document.getElementById('hof-ticker');
+      if(!data || data.length===0) {
+        if(ticker) ticker.innerHTML='<span class="ticker-item" style="color:rgba(0,245,255,0.25);letter-spacing:3px;font-size:9px">AUCUN SCORE — SOYEZ LE PREMIER !</span>';
+        return;
+      }
+      // Best score sur l'overlay de démarrage
+      var top = data[0];
+      if(best) best.textContent = 'RECORD : '+(top.pseudo||'ANONYME')+' — '+Number(top.score).toLocaleString()+' PTS';
+      // Construire les items du ticker (top 5 seulement)
+      var medals = ['#1','#2','#3','#4','#5'];
+      var top5 = data.slice(0, 5);
+      var html = '';
+      for(var i=0; i<top5.length; i++) {
+        var d = top5[i];
+        var nm = (d.pseudo && d.pseudo.length>0) ? d.pseudo : 'ANONYME';
+        html += '<span class="ticker-item">'
+          + '<span class="ticker-rank">'+medals[i]+'</span>'
+          + '<span class="ticker-name">'+nm+'</span>'
+          + '<span class="ticker-score">'+Number(d.score).toLocaleString()+'</span>'
+          + '<span class="ticker-wave">W'+d.wave+'</span>'
+          + '</span>';
+      }
+      // Double le contenu pour un défilement continu sans saut
+      if(ticker) ticker.innerHTML = html + html;
+}
+loadHOF();
+
+// ── COLLISIONS ──────────────────────────────────────────────────
+function hit(ax,ay,ar,bx,by,br) {
+  return Math.hypot(ax-bx,ay-by)<ar+br;
+}
+
+function checkHits() {
+  var bi, ai, si, b, a, s;
+  // bullets vs asteroids
+  for(bi=bullets.length-1;bi>=0;bi--) {
+    b=bullets[bi];
+    for(ai=asteroids.length-1;ai>=0;ai--) {
+      a=asteroids[ai];
+      if(hit(b.x,b.y,3,a.x,a.y,a.r*0.82)) {
+        bullets.splice(bi,1);
+        addScore(PTS[a.size]);
+        var cols={large:'#ff6622',medium:'#ff9944',small:'#ffcc66'};
+        explode(a.x,a.y,a.size==='large'?22:a.size==='medium'?14:8,cols[a.size],a.size==='large'?3.5:2.5,55);
+        if(a.size==='large')       { sBigExp(); asteroids.push(mkAst(a.x,a.y,'medium'),mkAst(a.x,a.y,'medium')); }
+        else if(a.size==='medium') { sMedExp(); asteroids.push(mkAst(a.x,a.y,'small'),mkAst(a.x,a.y,'small')); }
+        else                       { sSmExp(); }
+        asteroids.splice(ai,1);
+        break;
+      }
+    }
+  }
+  // bullets vs saucers
+  for(bi=bullets.length-1;bi>=0;bi--) {
+    b=bullets[bi];
+    for(si=saucers.length-1;si>=0;si--) {
+      s=saucers[si];
+      if(hit(b.x,b.y,3,s.x,s.y,s.r)) {
+        explode(s.x,s.y,18,'#ff00aa',3,55);
+        addScore(s.big?200:1000);
+        saucers.splice(si,1); bullets.splice(bi,1);
+        break;
+      }
+    }
+  }
+  if(!ship||!ship.alive||invTimer>0) return;
+  // ship vs asteroids
+  for(ai=0;ai<asteroids.length;ai++) {
+    if(hit(ship.x,ship.y,9,asteroids[ai].x,asteroids[ai].y,asteroids[ai].r*0.75)) { killShip(); return; }
+  }
+  // ship vs saucers
+  for(si=0;si<saucers.length;si++) {
+    if(hit(ship.x,ship.y,9,saucers[si].x,saucers[si].y,saucers[si].r)) { killShip(); return; }
+  }
+  // ship vs saucer bullets
+  for(bi=0;bi<sbullets.length;bi++) {
+    if(hit(ship.x,ship.y,9,sbullets[bi].x,sbullets[bi].y,3)) { killShip(); return; }
+  }
+}
+
+// ── UPDATE ───────────────────────────────────────────────────────
+function update(dt) {
+  if(!running) return;
+  var i, b, a, s;
+
+  // beat
+  beatT-=dt;
+  if(beatT<=0) {
+    sBeat(beatPhase); beatPhase=!beatPhase;
+    beatInterval=Math.max(0.22,0.9-wave*0.04+asteroids.length*0.045);
+    beatT=beatInterval;
+  }
+
+  // ship movement
+  if(ship&&ship.alive) {
+    if(K['ArrowLeft']||K['KeyA']||K['m_l'])  ship.angle-=0.065;
+    if(K['ArrowRight']||K['KeyD']||K['m_r']) ship.angle+=0.065;
+
+    var thrusting=!!(K['ArrowUp']||K['KeyW']||K['m_t']);
+    if(thrusting) {
+      ship.vx+=Math.cos(ship.angle)*0.22;
+      ship.vy+=Math.sin(ship.angle)*0.22;
+      if(Math.random()<0.3) sThrust();
+      trailPts.push({x:ship.x-Math.cos(ship.angle)*13, y:ship.y-Math.sin(ship.angle)*13, life:16});
+    }
+
+    var firing=!!(K['Space']||K['m_f']);
+    if(firing&&shootCD<=0&&bullets.length<5) {
+      sShoot();
+      bullets.push({x:ship.x+Math.cos(ship.angle)*14, y:ship.y+Math.sin(ship.angle)*14,
+        vx:Math.cos(ship.angle)*7+ship.vx*0.3, vy:Math.sin(ship.angle)*7+ship.vy*0.3, life:55});
+      shootCD=7;
+    }
+    if(shootCD>0) shootCD--;
+
+    var spd=Math.hypot(ship.vx,ship.vy);
+    if(spd>6) { ship.vx=ship.vx/spd*6; ship.vy=ship.vy/spd*6; }
+    ship.vx*=0.986; ship.vy*=0.986;
+    ship.x=wrap(ship.x+ship.vx,W());
+    ship.y=wrap(ship.y+ship.vy,H());
+    if(invTimer>0) invTimer--;
+  }
+
+  // trail decay
+  for(i=trailPts.length-1;i>=0;i--) { trailPts[i].life--; if(trailPts[i].life<=0) trailPts.splice(i,1); }
+
+  // asteroids
+  for(i=0;i<asteroids.length;i++) {
+    a=asteroids[i];
+    a.x=wrap(a.x+a.vx,W()); a.y=wrap(a.y+a.vy,H()); a.rot+=a.rotV;
+  }
+
+  // player bullets
+  for(i=bullets.length-1;i>=0;i--) {
+    b=bullets[i];
+    b.x=wrap(b.x+b.vx,W()); b.y=wrap(b.y+b.vy,H()); b.life--;
+    if(b.life<=0) bullets.splice(i,1);
+  }
+
+  // saucers
+  saucerT-=dt;
+  if(saucerT<=0&&saucers.length<2&&running) {
+    saucers.push(mkSaucer());
+    saucerT=Math.max(6,16-wave*1.2);
+  }
+  for(i=saucers.length-1;i>=0;i--) {
+    s=saucers[i];
+    s.x+=s.vx; s.y=wrap(s.y+s.vy,H());
+    if(s.x<-50||s.x>W()+50) { saucers.splice(i,1); continue; }
+    s.shootT--;
+    if(s.shootT<=0&&ship&&ship.alive) { saucerShoot(s); s.shootT=rnd(60,120); }
+  }
+
+  // saucer bullets
+  for(i=sbullets.length-1;i>=0;i--) {
+    b=sbullets[i];
+    b.x=wrap(b.x+b.vx,W()); b.y=wrap(b.y+b.vy,H()); b.life--;
+    if(b.life<=0) sbullets.splice(i,1);
+  }
+
+  // particles
+  for(i=particles.length-1;i>=0;i--) {
+    var p=particles[i];
+    p.x+=p.vx; p.y+=p.vy; p.vx*=0.97; p.vy*=0.97; p.life--;
+    if(p.life<=0) particles.splice(i,1);
+  }
+
+  // respawn
+  if(ship&&!ship.alive&&lives>0&&respTimer>0) {
+    respTimer--;
+    if(respTimer<=0) { ship=mkShip(); invTimer=180; }
+  }
+
+  // next wave trigger
+  if(asteroids.length===0&&saucers.length===0&&nextWaveT===0&&running) {
+    nextWaveT=150;
+  }
+  if(nextWaveT>0) {
+    nextWaveT--;
+    if(nextWaveT===100) {
+      wave++;
+      document.getElementById('wv').textContent=wave;
+      var wm=document.getElementById('wave-msg');
+      wm.textContent='VAGUE '+wave;
+      wm.classList.add('show');
+      setTimeout(function(){ wm.classList.remove('show'); },1600);
+    }
+    if(nextWaveT===0) {
+      sbullets=[]; saucers=[]; saucerT=10; spawnWave();
+    }
+  }
+
+  checkHits();
+}
+
+// ── DRAW ─────────────────────────────────────────────────────────
+function glow(col,blur) { CX.shadowColor=col; CX.shadowBlur=blur; }
+function noGlow()       { CX.shadowBlur=0; }
+
+function drawAt(x,y,fn) {
+  var w=W(), h=H(), dx, dy;
+  for(dx=-1;dx<=1;dx++) {
+    for(dy=-1;dy<=1;dy++) {
+      CX.save();
+      CX.translate(x+dx*w, y+dy*h);
+      fn();
+      CX.restore();
+    }
+  }
+}
+
+var stars=null;
+function initStars() {
+  stars=[]; var i;
+  for(i=0;i<110;i++) stars.push({x:rnd(0,1),y:rnd(0,1),r:rnd(0.3,1.6),t:rnd(0,TAU),s:rnd(0.3,1.5)});
+}
+
+function draw() {
+  var w=W(), h=H(), i;
+  CX.fillStyle='#020810'; CX.fillRect(0,0,w,h);
+
+  // nebula
+  var nb=CX.createRadialGradient(w*.5,h*.35,0,w*.5,h*.35,w*.6);
+  nb.addColorStop(0,'rgba(0,12,45,0.6)'); nb.addColorStop(1,'rgba(0,0,0,0)');
+  CX.fillStyle=nb; CX.fillRect(0,0,w,h);
+
+  // stars
+  if(!stars) initStars();
+  var t=Date.now()*0.001;
+  for(i=0;i<stars.length;i++) {
+    var st=stars[i], tw=Math.sin(st.t+t*st.s)*0.45+0.55;
+    CX.globalAlpha=0.18+tw*0.55;
+    CX.fillStyle='#ffffff';
+    CX.beginPath(); CX.arc(st.x*w,st.y*h,st.r*tw,0,TAU); CX.fill();
+  }
+  CX.globalAlpha=1;
+
+  // thrust trail
+  for(i=0;i<trailPts.length;i++) {
+    var tp=trailPts[i], ta=(i/Math.max(trailPts.length,1))*0.5;
+    CX.globalAlpha=ta;
+    glow('#ff5500',5);
+    CX.fillStyle='#ff7722';
+    CX.beginPath(); CX.arc(tp.x,tp.y,2.5*(i/Math.max(trailPts.length,1)),0,TAU); CX.fill();
+  }
+  CX.globalAlpha=1; noGlow();
+
+  // player bullets
+  for(i=0;i<bullets.length;i++) {
+    var bl=bullets[i];
+    glow('#ffffff',10); CX.fillStyle='#e0f8ff';
+    CX.beginPath(); CX.arc(wrap(bl.x,w),wrap(bl.y,h),2.5,0,TAU); CX.fill();
+    noGlow();
+  }
+
+  // asteroids
+  var acols={large:'#ff6622',medium:'#ff9944',small:'#ffcc66'};
+  for(i=0;i<asteroids.length;i++) {
+    var ast=asteroids[i];
+    (function(ast2){
+      drawAt(ast2.x,ast2.y,function(){
+        CX.rotate(ast2.rot);
+        glow(acols[ast2.size],9);
+        CX.strokeStyle=acols[ast2.size];
+        CX.lineWidth=ast2.size==='large'?2:1.5;
+        CX.beginPath();
+        for(var j=0;j<ast2.shape.length;j++) {
+          if(j===0) CX.moveTo(ast2.shape[j][0],ast2.shape[j][1]);
+          else       CX.lineTo(ast2.shape[j][0],ast2.shape[j][1]);
+        }
+        CX.closePath(); CX.stroke(); noGlow();
+      });
+    })(ast);
+  }
+
+  // saucers
+  for(i=0;i<saucers.length;i++) {
+    var sc=saucers[i], scol=sc.big?'#ff22aa':'#ff55cc';
+    (function(sc2,scol2){
+      drawAt(sc2.x,sc2.y,function(){
+        glow(scol2,14); CX.strokeStyle=scol2; CX.lineWidth=1.8;
+        var r=sc2.r;
+        CX.beginPath(); CX.ellipse(0,0,r,r*0.42,0,0,TAU); CX.stroke();
+        CX.beginPath();
+        CX.moveTo(-r*0.55,-r*0.3);
+        CX.bezierCurveTo(-r*0.5,-r*0.85,r*0.5,-r*0.85,r*0.55,-r*0.3);
+        CX.stroke();
+        CX.beginPath(); CX.moveTo(-r,-r*0.08); CX.lineTo(r,-r*0.08); CX.stroke();
+        noGlow();
+      });
+    })(sc,scol);
+  }
+
+  // saucer bullets
+  for(i=0;i<sbullets.length;i++) {
+    var sb=sbullets[i];
+    glow('#ff00aa',8); CX.fillStyle='#ff66cc';
+    CX.beginPath(); CX.arc(wrap(sb.x,w),wrap(sb.y,h),2.2,0,TAU); CX.fill();
+    noGlow();
+  }
+
+  // particles
+  for(i=0;i<particles.length;i++) {
+    var pp=particles[i], pa=pp.life/pp.maxL;
+    CX.globalAlpha=pa;
+    glow(pp.col,5); CX.fillStyle=pp.col;
+    CX.beginPath(); CX.arc(wrap(pp.x,w),wrap(pp.y,h),pp.r*pa,0,TAU); CX.fill();
+    CX.globalAlpha=1; noGlow();
+  }
+
+  // ship
+  if(ship&&ship.alive) {
+    var blink=invTimer>0&&Math.floor(invTimer/5)%2===1;
+    if(!blink) {
+      (function(){
+        drawAt(ship.x,ship.y,function(){
+          CX.rotate(ship.angle+Math.PI/2);
+          if(K['ArrowUp']||K['KeyW']||K['m_t']) {
+            glow('#ff5500',18); CX.strokeStyle='#ff8833'; CX.lineWidth=1.5;
+            CX.beginPath();
+            CX.moveTo(-5,8); CX.lineTo(0,14+rnd(0,5)); CX.lineTo(5,8);
+            CX.stroke(); noGlow();
+          }
+          glow('#00f5ff',14); CX.strokeStyle='#00f5ff'; CX.lineWidth=1.8;
+          CX.beginPath();
+          CX.moveTo(0,-13); CX.lineTo(9,10);
+          CX.lineTo(4,6);  CX.lineTo(-4,6);
+          CX.lineTo(-9,10); CX.closePath();
+          CX.stroke(); noGlow();
+        });
+      })();
+    }
+  }
+
+  // respawn dots
+  if(ship&&!ship.alive&&lives>0) {
+    glow('#00f5ff',6); CX.fillStyle='rgba(0,245,255,0.45)';
+    var nd=Math.ceil(respTimer/30);
+    for(i=0;i<nd&&i<6;i++) {
+      CX.beginPath(); CX.arc(w/2+(i-Math.min(nd,6)/2)*14,h/2,3.5,0,TAU); CX.fill();
+    }
+    noGlow();
+  }
+
+  // CRT scanlines
+  CX.fillStyle='rgba(0,0,0,0.025)';
+  for(var y=0;y<h;y+=4) CX.fillRect(0,y,w,2);
+}
+
+// ── LOOP ─────────────────────────────────────────────────────────
+var lastTs=0;
+
+function loop(ts) {
+  var dt=Math.min((ts-lastTs)/1000,0.05);
+  lastTs=ts;
+  update(dt);
+  draw();
+  requestAnimationFrame(loop);
+}
+
+// ── START ────────────────────────────────────────────────────────
+function startGame() {
+  try { getAC().resume(); } catch(e){}
+  resize();
+  score=0; lives=3; wave=1;
+  invTimer=0; respTimer=0; shootCD=0;
+  beatT=0; beatPhase=false; beatInterval=1.0;
+  saucerT=12; nextWaveT=0;
+  asteroids=[]; bullets=[]; saucers=[]; sbullets=[]; particles=[]; trailPts=[];
+  stars=null;
+  ship=mkShip();
+  invTimer=120;
+  spawnWave();
+  updateHUD();
+  running=true;
+  document.getElementById('overlay').classList.add('hidden');
+}
+
+requestAnimationFrame(function(ts){ lastTs=ts; requestAnimationFrame(loop); });
+</script>
+
+
+</body>
+</html>
